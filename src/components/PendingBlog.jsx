@@ -22,12 +22,14 @@ const PendingBlogPage = () => {
     return <h1 className="text-center mt-10">Loading Posts!</h1>;
 
   const rejectPostFunc = async (id) => {
+    console.log("id inside of rejectfunc: ",id);
     await rejectPostById(id);
     await getPendingPosts();
     // navigate("/posts/pending-blogs");
   };
 
   const approvePostFunc = async (id) => {
+    console.log("id inside of approveFunc: ",id);
     await approvePostById(id);
     await getPendingPosts();
     // navigate("/posts/pending-blogs");
