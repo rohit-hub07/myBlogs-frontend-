@@ -13,14 +13,14 @@ const Navbar = () => {
   const setSearchQuery = usePostStore((state) => state.setSearchQuery);
   const { authUser, profile, logout } = useAuthStore();
 
-  useEffect(() => {
-    profile();
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  // useEffect(() => {
+  //   profile();
+  //   const handleScroll = () => {
+  //     setScrolled(window.scrollY > 10);
+  //   };
+  //   window.addEventListener("scroll", handleScroll);
+  //   return () => window.removeEventListener("scroll", handleScroll);
+  // }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
