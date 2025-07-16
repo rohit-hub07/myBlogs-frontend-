@@ -99,9 +99,11 @@ const Navbar = () => {
             <div className="hidden md:flex items-center space-x-4">
               {!isLoggedIn ? (
                 <>
-                  <button className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg transition-colors duration-200">
+                  <Link to="/auth/login">
+                    <button className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 rounded-lg transition-colors duration-200">
                     Login
                   </button>
+                  </Link>
                   <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 px-6 py-2 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
                     Sign Up
                   </button>
