@@ -41,7 +41,7 @@ const CreateBlogPage = () => {
   useEffect(() => {
     getAllCategory();
   }, [getAllCategory]);
-  console.log("allcategories: ", allCategories)
+  // console.log("allcategories: ", allCategories)
   // const filteredCategories = useMemo(
   //   () => possibleCategories.filter(cat => allCategories.includes(cat)),
   //   [allCategories]
