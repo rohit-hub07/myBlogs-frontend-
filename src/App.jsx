@@ -24,7 +24,7 @@ function App() {
     <>
       <Toaster />
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/" element={authUser? <Layout />: <LoginPage />}>
           <Route
             path="/"
             element={authUser ? <HomePage /> : <Navigate to={"/auth/login"} />}
