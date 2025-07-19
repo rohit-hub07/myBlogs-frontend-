@@ -53,7 +53,7 @@ export const usePostStore = create((set) => ({
       toast.success(res.data.message);
     } catch (error) {
       console.log("error inside of uploadPost: ", error.response.data);
-      toast.error(error);
+      toast.error("Error uploading post");
     } finally {
       set({ isCreatingPost: false });
     }

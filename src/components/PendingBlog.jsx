@@ -12,6 +12,7 @@ const PendingBlogPage = () => {
     getPendingPosts,
     approvePostById,
     rejectPostById,
+    getRejectedPosts
   } = usePostStore();
 
   useEffect(() => {
@@ -22,17 +23,15 @@ const PendingBlogPage = () => {
     return <h1 className="text-center mt-10">Loading Posts!</h1>;
 
   const rejectPostFunc = async (id) => {
-    // console.log("id inside of rejectfunc: ",id);
     await rejectPostById(id);
     await getPendingPosts();
-    // navigate("/posts/pending-blogs");
+    await getRejectedPosts();
   };
 
   const approvePostFunc = async (id) => {
-    // console.log("id inside of approveFunc: ",id);
     await approvePostById(id);
     await getPendingPosts();
-    // navigate("/posts/pending-blogs");
+    await getRejectedPosts();
   };
 
   return (
@@ -77,7 +76,7 @@ const PendingBlogPage = () => {
                 </div>
               </div>
               {/* Accept / Reject Buttons */}
-              {authUser.role === "admin" ? (
+              {authUser?.role === "admin" ? (
                 <div className="mt-4 flex space-x-2">
                   <button
                     onClick={() => approvePostFunc(p._id)}

@@ -8,11 +8,12 @@ import { useNavigate } from "react-router-dom";
 const RejectedBlog = () => {
   const { authUser, profile } = useAuthStore();
   const navigate = useNavigate();
-  const { rejectedPosts, isRejectedPostLoading, getRejectedPosts, deletePost } =
+  const { rejectedPosts, isRejectedPostLoading, getRejectedPosts, deletePost, getPendingPosts } =
     usePostStore();
 
   useEffect(() => {
     getRejectedPosts();
+    getPendingPosts();
     profile();
   }, []);
 
@@ -22,7 +23,7 @@ const RejectedBlog = () => {
   const deletePostFunc = async (id) => {
     await deletePost(id);
     await getRejectedPosts();
-    // navigate("/posts/pending-posts");
+    await getPendingPosts();
   };
 
   return (
