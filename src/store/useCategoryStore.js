@@ -22,8 +22,7 @@ export const useCategoryStore = create((set) => ({
       const res = await axiosInstance.get("/category");
       set({ allCategories: res.data.categories });
     } catch (error) {
-      console.log("Error getting categories: ", error.response.data);
-      toast.error("Error getting categories");
+      console.log("Error getting categories: ", error.response?.data);
     }
   },
 }));

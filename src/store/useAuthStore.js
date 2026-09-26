@@ -4,13 +4,14 @@ import toast from "react-hot-toast";
 
 export const useAuthStore = create((set) => ({
   authUser: null,
-  isUserLoading: "false",
+  isUserLoading: false,
   isSigningUp: false,
   isLogging: false,
   isLoggingOut: false,
   isProfileLoading: false,
   isLoggedIn: false,
   usePosts: [],
+  userPosts: [],
   registerUser: async (data) => {
     set({ isSigningUp: true });
     try {
@@ -57,8 +58,8 @@ export const useAuthStore = create((set) => ({
       set({ authUser: res.data.loggedInUser, isLoggedIn: true, userPosts: res.data.posts });
       // toast.success(res.data.message);
     } catch (error) {
-      set({ authUser: null, isLoggedIn: false }); 
-      toast.error("Error getting user profile or session expired!");
+      set({ authUser: null, isLoggedIn: false });
+      console.log("Error getting user profile or session expired:", error.response?.data);
     } finally {
       set({ isProfileLoading: false });
     }

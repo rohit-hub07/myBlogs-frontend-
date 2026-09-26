@@ -1,67 +1,129 @@
-// CreateBlogPage.tsx
 import React, { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
-  PenTool, FileText, Tag, Image, Eye, Save, ArrowLeft, Type, AlignLeft
+  PenTool, 
+  FileText, 
+  Tag, 
+  Image as ImageIcon, 
+  Eye, 
+  Save, 
+  ArrowLeft, 
+  Type, 
+  AlignLeft,
+  Sparkles,
+  Check,
+  FolderPlus,
+  HelpCircle,
+  Clock,
+  BookOpen,
+  Info,
+  Shuffle
 } from "lucide-react";
 import { usePostStore } from "../store/usePostStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { useCategoryStore } from "../store/useCategoryStore";
 
 const blogSchema = z.object({
-  title: z.string().min(1, "Title is required").max(100),
+  title: z.string().min(3, "Title must be at least 3 characters").max(120, "Title is too long"),
   content: z.string().min(10, "Content must be at least 10 characters"),
-  category: z.string().min(1, "Category is required"),
+  category: z.string().min(1, "Please select a category"),
   tags: z.string().optional(),
-  coverImage: z.string().url().optional().or(z.literal("")),
+  coverImage: z.string().optional().or(z.literal("")),
 });
 
-// const possibleCategories = [
-//   "Technology", "Lifestyle", "Travel",
-//   "Food", "Health", "Business",
-//   "Education", "Entertainment"
-// ];
+const defaultCategories = [
+  "Technology", "Engineering", "Design", "Productivity", 
+  "Artificial Intelligence", "Career", "Web Development", "Tutorials"
+];
+
+const PRESET_COVERS = [
+  {
+    name: "Tech Matrix",
+    url: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    name: "Coding Desk",
+    url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    name: "Cyber Gradient",
+    url: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    name: "Creative Design",
+    url: "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    name: "AI Network",
+    url: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    name: "Modern Editorial",
+    url: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80",
+  },
+];
 
 const CreateBlogPage = () => {
   const navigate = useNavigate();
   const { getAllCategory, allCategories } = useCategoryStore();
   const { uploadPost, isCreatingPost } = usePostStore();
   const { authUser } = useAuthStore();
-  const [isPreview, setIsPreview] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState("write"); // write | preview
 
-  const { register, handleSubmit, watch, formState: { errors }, reset } = useForm({
+  const { register, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm({
     resolver: zodResolver(blogSchema),
-    defaultValues: { title: "", content: "", category: "", tags: "", coverImage: "" },
+    defaultValues: { 
+      title: "", 
+      content: "", 
+      category: "", 
+      tags: "", 
+      coverImage: "" 
+    },
   });
 
   useEffect(() => {
     getAllCategory();
   }, [getAllCategory]);
-  // console.log("allcategories: ", allCategories)
-  // const filteredCategories = useMemo(
-  //   () => possibleCategories.filter(cat => allCategories.includes(cat)),
-  //   [allCategories]
-  // );
 
   const watchedValues = watch();
+
+  // Calculate stats
+  const wordCount = useMemo(() => {
+    if (!watchedValues.content) return 0;
+    return watchedValues.content.trim().split(/\s+/).filter(Boolean).length;
+  }, [watchedValues.content]);
+
+  const estimatedReadTime = useMemo(() => {
+    return Math.max(1, Math.ceil(wordCount / 200));
+  }, [wordCount]);
 
   const onSubmit = async (data) => {
     try {
       const processedTags = data.tags
-        ? data.tags.split(",").map(t => t.trim()).filter(t => t.length > 0) : [];
+        ? data.tags.split(",").map((t) => t.trim()).filter((t) => t.length > 0)
+        : [];
+      
       const postData = {
-        ...data,
+        title: data.title.trim(),
+        content: data.content,
+        category: data.category,
         tags: processedTags,
-        author: authUser._id,
+        coverImage: data.coverImage ? data.coverImage.trim() : undefined,
+        readTime: estimatedReadTime,
+        author: authUser?._id,
       };
+
       await uploadPost(postData);
-      toast.success("Blog post created successfully!");
+      localStorage.removeItem("blogDraft");
       reset();
-      navigate("/");
+      navigate("/posts/pending-blogs");
     } catch (error) {
       toast.error(error.message || "Failed to create blog post");
     }
@@ -69,192 +131,390 @@ const CreateBlogPage = () => {
 
   const handleSaveDraft = () => {
     localStorage.setItem("blogDraft", JSON.stringify(watchedValues));
-    toast.success("Draft saved locally!");
+    toast.success("Draft saved to browser storage!");
   };
 
   const loadDraft = () => {
     const draft = localStorage.getItem("blogDraft");
     if (draft) {
-      reset(JSON.parse(draft));
-      toast.success("Draft loaded!");
+      const parsed = JSON.parse(draft);
+      reset(parsed);
+      toast.success("Draft restored!");
+    } else {
+      toast.error("No saved draft found.");
     }
   };
 
-  const formatContentForPreview = (content) =>
-    content.split("\n").map((paragraph, idx) => (
-      <p key={idx} className="mb-4">{paragraph}</p>
-    ));
+  const handleSelectPreset = (url) => {
+    setValue("coverImage", url);
+    toast.success("Cover image selected!");
+  };
+
+  // Combine fetched categories with default categories
+  const categoriesList = useMemo(() => {
+    const map = new Map();
+    if (Array.isArray(allCategories)) {
+      allCategories.forEach((cat) => {
+        if (cat.name) {
+          map.set(cat.name, cat._id || cat.name);
+        }
+      });
+    }
+    defaultCategories.forEach((catName) => {
+      if (!map.has(catName)) {
+        map.set(catName, catName);
+      }
+    });
+    return Array.from(map.entries()).map(([name, val]) => ({ name, value: val }));
+  }, [allCategories]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button onClick={() => navigate("/")} className="flex items-center text-gray-600 hover:text-gray-900">
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              Back to Home
+    <div className="min-h-screen pb-20">
+      
+      {/* Top Writer Studio Bar */}
+      <header className="sticky top-16 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+          
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Cancel</span>
+          </button>
+
+          {/* Mode Switcher */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveTab("write")}
+              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                activeTab === "write"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              <PenTool className="w-3.5 h-3.5" />
+              <span>Write</span>
             </button>
-            <div className="flex items-center space-x-2">
-              <PenTool className="w-6 h-6 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Create New Blog Post</h1>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button type="button" onClick={loadDraft} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Load Draft</button>
-              <button type="button" onClick={handleSaveDraft} className="flex items-center px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-                <Save className="w-4 h-4 mr-2" /> Save Draft
-              </button>
-              <button type="button" onClick={() => setIsPreview(!isPreview)} className={`flex items-center px-4 py-2 text-sm rounded-lg transition-colors ${isPreview ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
-                <Eye className="w-4 h-4 mr-2" />
-                {isPreview ? "Edit" : "Preview"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("preview")}
+              className={`flex items-center gap-1.5 px-3.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                activeTab === "preview"
+                  ? "bg-white text-brand-600 shadow-xs"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Preview</span>
+            </button>
+          </div>
+
+          {/* Right Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              title="Save draft locally"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Save Draft</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={loadDraft}
+              className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
+            >
+              Load Draft
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSubmit(onSubmit)}
+              disabled={isCreatingPost}
+              className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-brand-500/20 disabled:opacity-50 transition-all"
+            >
+              {isCreatingPost ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Submitting...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Publish Story</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Form & Preview */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* Editor Content Area */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* Main Area */}
-          <div className="lg:col-span-2">
-            {!isPreview ? (
+          
+          {/* Main Writing / Preview Column */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {activeTab === "write" ? (
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div className="bg-white rounded-xl shadow-sm border p-6">
-                  <div className="flex items-center mb-4">
-                    <Type className="w-5 h-5 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Blog Title</label>
+                
+                {/* Title Card */}
+                <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-card p-6 sm:p-8">
+                  <div className="flex items-center justify-between mb-3 text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Type className="w-4 h-4 text-brand-600" />
+                      Article Title
+                    </span>
+                    <span>{watchedValues.title?.length || 0}/120</span>
                   </div>
-                  <input {...register("title")} type="text" placeholder="Enter your blog title..." className="w-full text-2xl font-bold border-none outline-none resize-none placeholder-gray-400" />
-                  {errors.title && <p className="mt-2 text-sm text-red-600">{errors.title.message}</p>}
+                  <input
+                    {...register("title")}
+                    type="text"
+                    placeholder="Enter an intriguing title..."
+                    className="w-full text-2xl sm:text-3xl font-extrabold text-slate-900 bg-transparent border-none outline-none placeholder:text-slate-300 focus:ring-0 p-0"
+                  />
+                  {errors.title && (
+                    <p className="mt-2 text-xs font-semibold text-rose-600">{errors.title.message}</p>
+                  )}
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border p-6">
-                  <div className="flex items-center mb-4">
-                    <AlignLeft className="w-5 h-5 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Content</label>
+                {/* Content Editor Card */}
+                <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-card p-6 sm:p-8">
+                  <div className="flex items-center justify-between mb-3 text-xs text-slate-400 font-semibold uppercase tracking-wider pb-3 border-b border-slate-100">
+                    <span className="flex items-center gap-1.5">
+                      <AlignLeft className="w-4 h-4 text-brand-600" />
+                      Markdown Content
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <span>{wordCount} words</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        ~{estimatedReadTime} min read
+                      </span>
+                    </div>
                   </div>
-                  <textarea {...register("content")} rows={20} placeholder="Start writing your blog content here..." className="w-full border-none outline-none resize-none placeholder-gray-400 text-gray-900 leading-relaxed" />
-                  {errors.content && <p className="mt-2 text-sm text-red-600">{errors.content.message}</p>}
-                </div>
 
-                <div className="flex justify-end">
-                  <button type="submit" disabled={isCreatingPost} className="flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
-                    {isCreatingPost ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Publishing...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Publish Blog Post
-                      </>
-                    )}
-                  </button>
+                  <textarea
+                    {...register("content")}
+                    rows={18}
+                    placeholder="Tell your story using Markdown syntax...
+
+## Key Takeaway
+Share clear explanations, code blocks, bullet points, or personal lessons learned."
+                    className="w-full bg-transparent border-none outline-none resize-none placeholder:text-slate-300 text-slate-800 text-base leading-relaxed p-0 focus:ring-0 font-sans"
+                  />
+                  {errors.content && (
+                    <p className="mt-2 text-xs font-semibold text-rose-600">{errors.content.message}</p>
+                  )}
                 </div>
               </form>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border p-8">
-                <div className="prose max-w-none">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-6">{watchedValues.title || "Your Blog Title"}</h1>
-                  {watchedValues.coverImage && (
-                    <img src={watchedValues.coverImage} alt="Featured" className="w-full h-64 object-cover rounded-lg mb-6" />
-                  )}
-                  <div className="text-gray-700 leading-relaxed">
-                    {watchedValues.content ? formatContentForPreview(watchedValues.content) : (
-                      <p className="text-gray-400 italic">Your content will appear here...</p>
-                    )}
+              /* Live Preview Card */
+              <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-card p-6 sm:p-10">
+                {watchedValues.coverImage && (
+                  <div className="rounded-2xl overflow-hidden mb-8 h-64 bg-slate-100">
+                    <img
+                      src={watchedValues.coverImage}
+                      alt="Cover Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => (e.target.style.display = "none")}
+                    />
                   </div>
-                  {watchedValues.tags && (
-                    <div className="mt-8 pt-6 border-t">
-                      <div className="flex flex-wrap gap-2">
-                        {watchedValues.tags.split(",").map((tag, idx) => (
-                          <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                            {tag.trim()}
+                )}
+
+                {watchedValues.category && (
+                  <span className="inline-block px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-bold uppercase mb-4">
+                    {watchedValues.category}
+                  </span>
+                )}
+
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight mb-6">
+                  {watchedValues.title || "Untitled Article"}
+                </h1>
+
+                <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed">
+                  {watchedValues.content ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {watchedValues.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <p className="text-slate-400 italic">No content written yet. Switch back to write tab.</p>
+                  )}
+                </div>
+
+                {watchedValues.tags && (
+                  <div className="mt-8 pt-6 border-t border-slate-100 flex flex-wrap gap-2">
+                    {watchedValues.tags.split(",").map((t, idx) => (
+                      <span key={idx} className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-lg">
+                        #{t.trim()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar Settings Column */}
+          <aside className="space-y-6">
+            
+            {/* Metadata Settings Card */}
+            <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-card p-6">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-brand-600" />
+                Publication Settings
+              </h3>
+
+              <div className="space-y-4">
+                {/* Category Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Category *
+                  </label>
+                  <select
+                    {...register("category")}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                  >
+                    <option value="">Select Topic Category</option>
+                    {categoriesList.map((cat) => (
+                      <option key={cat.name} value={cat.value}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.category && (
+                    <p className="mt-1 text-xs font-semibold text-rose-600">{errors.category.message}</p>
+                  )}
+                </div>
+
+                {/* Tags Field */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Tags (comma separated)
+                  </label>
+                  <div className="relative">
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      {...register("tags")}
+                      type="text"
+                      placeholder="react, tailwind, webdev"
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Cover Image URL & Presets */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Cover Image URL (Optional)
+                  </label>
+                  <div className="relative">
+                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      {...register("coverImage")}
+                      type="url"
+                      placeholder="Paste image link or choose preset below"
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    />
+                  </div>
+                  {errors.coverImage && (
+                    <p className="mt-1 text-xs font-semibold text-rose-600">{errors.coverImage.message}</p>
+                  )}
+
+                  {/* Preset Wallpapers Picker */}
+                  <div className="mt-3">
+                    <p className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center justify-between">
+                      <span>Quick Select Covers</span>
+                      <span className="text-[10px] text-slate-400">or left empty for auto-assign</span>
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {PRESET_COVERS.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => handleSelectPreset(preset.url)}
+                          className="group/preset relative h-14 rounded-xl overflow-hidden border border-slate-200 hover:border-brand-500 hover:scale-105 transition-all shadow-xs"
+                          title={preset.name}
+                        >
+                          <img
+                            src={preset.url}
+                            alt={preset.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute inset-0 bg-black/40 flex items-end p-1 text-[9px] font-bold text-white opacity-0 group-hover/preset:opacity-100 transition-opacity">
+                            {preset.name}
                           </span>
-                        ))}
-                      </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {watchedValues.coverImage && (
+                    <div className="mt-3 rounded-xl overflow-hidden h-28 border border-slate-200 bg-slate-100 relative">
+                      <img
+                        src={watchedValues.coverImage}
+                        alt="Thumbnail"
+                        className="w-full h-full object-cover"
+                        onError={(e) => (e.target.style.display = "none")}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setValue("coverImage", "")}
+                        className="absolute top-2 right-2 bg-slate-900/70 hover:bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-xs transition-colors"
+                      >
+                        Clear
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Blog Settings</h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center mb-2">
-                    <Tag className="w-4 h-4 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Category</label>
-                  </div>
-                  <select {...register("category")} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">Select a category</option>
-                    {allCategories.map(cat => (
-                      <option key={cat._id} value={cat.name}>{cat.name}</option>
-                    ))}
-                  </select>
-                  {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category.message}</p>}
-                </div>
-
-                <div>
-                  <div className="flex items-center mb-2">
-                    <Tag className="w-4 h-4 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Tags</label>
-                  </div>
-                  <input {...register("tags")} type="text" placeholder="react, javascript, web development" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                  <p className="mt-1 text-xs text-gray-500">Separate tags with commas</p>
-                </div>
-
-                <div>
-                  <div className="flex items-center mb-2">
-                    <Image className="w-4 h-4 text-gray-500 mr-2" />
-                    <label className="text-sm font-medium text-gray-700">Featured Image URL</label>
-                  </div>
-                  <input {...register("coverImage")} type="url" placeholder="https://example.com/image.jpg" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                  {errors.coverImage && <p className="mt-1 text-sm text-red-600">{errors.coverImage.message}</p>}
-                </div>
-              </div>
             </div>
 
-            {/* Writing Tips */}
-            <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-4">Writing Tips</h3>
-              <ul className="space-y-2 text-sm text-blue-800">
-                <li>• Start with an engaging title</li>
-                <li>• Write in a conversational tone</li>
-                <li>• Use short paragraphs for readability</li>
-                <li>• Add relevant tags to help readers find your content</li>
-                <li>• Include a featured image to make your post stand out</li>
-                <li>• Preview your post before publishing</li>
+            {/* Markdown Guidelines & Tips Card */}
+            <div className="bg-gradient-to-br from-brand-50/70 via-indigo-50/40 to-purple-50/50 rounded-3xl border border-brand-100 p-6">
+              <h4 className="text-xs font-bold text-brand-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <HelpCircle className="w-4 h-4 text-brand-600" />
+                Writing Guidelines
+              </h4>
+              <ul className="space-y-2 text-xs text-brand-800 leading-relaxed">
+                <li className="flex items-start gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-brand-600 mt-0.5 flex-shrink-0" />
+                  <span>Use clear headers (##, ###) for structure.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-brand-600 mt-0.5 flex-shrink-0" />
+                  <span>Include relatable code snippets or examples.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-brand-600 mt-0.5 flex-shrink-0" />
+                  <span>Submissions undergo swift community review.</span>
+                </li>
               </ul>
             </div>
 
-            {/* Author Info */}
+            {/* Author Status */}
             {authUser && (
-              <div className="bg-gray-50 rounded-xl border p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Author</h3>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium">
-                      {authUser.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{authUser.name}</p>
-                    <p className="text-sm text-gray-600">{authUser.email}</p>
-                  </div>
+              <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-card p-5 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
+                  {authUser.name ? authUser.name.charAt(0).toUpperCase() : "U"}
+                </div>
+                <div className="truncate">
+                  <p className="text-xs font-bold text-slate-900 truncate">Publishing as {authUser.name}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{authUser.email}</p>
                 </div>
               </div>
             )}
-          </div>
 
+          </aside>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

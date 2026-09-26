@@ -4,20 +4,18 @@ import toast from "react-hot-toast";
 
 export const useCommentStore = create((set) => ({
   comments: [],
-  isCommnetLoading: false,
+  isCommentLoading: false,
   addedComment: null,
   isCommentAdding: false,
   getAllComments: async (id) => {
-    set({ isCommnetLoading: true });
+    set({ isCommentLoading: true });
     try {
       const res = await axiosInstance.get(`/comments/${id}`);
       set({ comments: res.data.allComments });
-      toast.success(res.data.message);
     } catch (error) {
-      console.log("Error getting the comments: ", error.response.data);
-      toast.error("Error getting comments");
+      console.log("Error getting the comments: ", error.response?.data);
     } finally {
-      set({ isCommnetLoading: false });
+      set({ isCommentLoading: false });
     }
   },
 
